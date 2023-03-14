@@ -11,7 +11,8 @@ This software package was written by [Gary Kane](https://github.com/gkane26), po
 **Prerequisite Software:**
 1. Windows 10
 2. [Anaconda](https://www.anaconda.com/)
-3. [Git](https://gitforwindows.org/)
+     - **LSENS**: install for all users.
+4. [Git](https://gitforwindows.org/)
 
 **Required Hardware:**
 1. [Imaging Source USB cameras](https://www.theimagingsource.com/)

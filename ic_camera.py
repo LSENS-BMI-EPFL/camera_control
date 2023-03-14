@@ -38,7 +38,18 @@ class ICCam(object):
 
         self.cam = ic.TIS_CAM()
         self.cam.open(self.cam.GetDevices()[cam_num].decode())
-        self.add_filters()
+
+        # Load device state from file
+        if self.cam.IsDevValid():
+            try:
+                file_name = 'configs/{}_config.xml'.format(cam_details[str(self.cam_num)]['name'])
+            except:
+                print('Could not find a device configuration state .xml file for this camera. Please check camera names.')
+
+            self.cam.LoadDeviceStateFromFile(file_name)
+            print('Loaded device state: {}'.format(file_name))
+
+        #self.add_filters() #not needed if using device state
 
     def add_filters(self):
         if self.rotate != 0:

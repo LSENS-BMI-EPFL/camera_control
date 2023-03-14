@@ -538,7 +538,7 @@ class TIS_CAM(object):
         def SetVideoFormat(self,Format):
             return TIS_GrabberDLL.set_videoformat(self._handle, self.s(Format))
 
-        def SetFrameRate(self,FPS):
+        def SetFrameRate(self, FPS):
             return TIS_GrabberDLL.set_framerate(self._handle, FPS)
 
         def get_video_format_width(self):

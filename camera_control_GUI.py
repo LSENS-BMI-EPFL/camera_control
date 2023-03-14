@@ -245,7 +245,7 @@ class CamGUI(object):
             self.vid_start_time = time.time()
             t = []
             for i in range(len(self.cam)):
-                self.cam[i].set_frame_rate(int(self.fps.get()))
+                #self.cam[i].set_frame_rate(int(self.fps.get()))
                 t.append(threading.Thread(target=self.record_on_thread, args=(i,)))
                 t[-1].daemon = True
                 t[-1].start()
@@ -347,6 +347,7 @@ class CamGUI(object):
         select_cams_window = Tk()
         select_cams_window.title("Select Cameras")
 
+
         # number of cameras
         Label(select_cams_window, text="How many cameras?").grid(sticky="w", row=0, column=0)
         self.number_of_cams = StringVar(value="1")
@@ -435,7 +436,7 @@ class CamGUI(object):
         Label(self.window, text="Frame Rate: ").grid(sticky="w", row=cur_row, column=0)
         self.fps = StringVar()
         self.fps_entry = Entry(self.window, textvariable=self.fps)
-        self.fps_entry.insert(END, '100')
+        self.fps_entry.insert(END, '200')
         self.fps_entry.grid(sticky="nsew", row=cur_row, column=1)
         cur_row += 1
 

@@ -11,7 +11,8 @@ This software package was written by [Gary Kane](https://github.com/gkane26), po
 **Prerequisite Software:**
 1. Windows 10
 2. [Anaconda](https://www.anaconda.com/)
-3. [Git](https://gitforwindows.org/)
+     - **LSENS**: install for all users.
+4. [Git](https://gitforwindows.org/)
 
 **Required Hardware:**
 1. [Imaging Source USB cameras](https://www.theimagingsource.com/)
@@ -52,6 +53,7 @@ This script will finish setting up the conda environment and create a desktop sh
     - subjects = a list of experimental subjects to select. Can be manually entered in GUI
     - labview = a list of labview channels to select, e.g. ['Dev1/port0/line0'] (optional). Can be manually entered in GUI <br/><br/>
 
+**LSENS**: The template to follow is `write_camera_details.py`. This file will also ask that you configure a device state for each camera object listed above. These states will be saved and loaded upon camera initialization. This requires that you now which of `cam_0`/`cam_1` corresponds to which view, if your configuration parameters are view-dependent (e.g. FPS). WIP
 
 ## To Run the Program:
 

@@ -19,13 +19,13 @@ out = os.path.normpath(path + '/camera_details.json')
 # Crop, rotation, and exposure are default parameters. Can be changed in the GUI.
 # NOTE: you need to know how cameras are ordered in your system (check in IC Capture) e.g. camera 0 is lateral
 cam_0 = {'name' : 'ephys_1_lateral',
-        'crop' : {'top' : 0, 'left' : 0, 'height' : 960, 'width' : 1280},
+        'crop' : {'top' : 0, 'left' : 0, 'height' : 540, 'width' : 720},
         'rotate' : 0,
         'exposure' : 0.002,
         'output_dir' : r'C:/Users/bisi/Desktop/video'}
 
 cam_1 = {'name' : 'ephys_1_top',
-        'crop' : {'top' : 0, 'left' : 0, 'height' : 960, 'width' : 1280},
+        'crop' : {'top' : 0, 'left' : 0, 'height' : 540, 'width' : 720},
         'rotate' : 0,
         'exposure' : 0.002,
         'output_dir' : r'C:/Users/bisi/Desktop/video'}
@@ -43,7 +43,7 @@ details = {'cams' : n_cams,
            #'labview' : labview
            }
 
-# Write camera details fro GUI
+# Write camera details from GUI
 with open(out, 'w') as handle:
     json.dump(details, handle)
 
@@ -53,7 +53,7 @@ tis.declareFunctions(ic)
 ic.IC_InitLibrary(0)
 
 for cam in cam_list:
-
+    print('Configuring {}'.format(cam['name']))
     hGrabber = ic.IC_ShowDeviceSelectionDialog(None)
 
     if(ic.IC_IsDevValid(hGrabber)):

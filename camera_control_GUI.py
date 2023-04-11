@@ -20,7 +20,7 @@ import threading
 import json
 import nidaqmx
 
-class CamGUI(object):
+class CamGUI(object): #TODO: at init strobe disable
 
     def __init__(self):
 
@@ -76,7 +76,6 @@ class CamGUI(object):
         self.cam[num].start()
         self.exposure[num].set(self.cam[num].get_exposure())
 
-        # reset output directory
         self.output.set(self.output_entry['values'][cam_num])
 
         setup_window.destroy()
@@ -166,7 +165,7 @@ class CamGUI(object):
             if not os.path.isdir(os.path.normpath(self.out_dir)):
                 os.makedirs(os.path.normpath(self.out_dir))
 
-            # create output file names
+            # create output file names #TODO: output directory should be like ABXXX_YYYYMMDD_HHMMSS
             self.vid_file = []
             self.base_name = []
             self.ts_file = []
@@ -220,17 +219,27 @@ class CamGUI(object):
                 self.lv_ts = []
                 self.setup = True
 
+            # disable strobe out
+            #for i in range(len(self.cam)):
+            #    self.cam[i].strobe_off()
+
+
     def record_on_thread(self, num):
         fps = int(self.fps.get())
         start_time = time.time()
         next_frame = start_time
 
+        #self.cam[num].strobe_on()
         try:
             while self.record_on.get():
                 if time.time() >= next_frame:
+
                     self.frame_times[num].append(time.time())
+                    self.cam[num].software_trigger()
                     self.vid_out[num].write(self.cam[num].get_image())
                     next_frame = max(next_frame + 1.0/fps, self.frame_times[num][-1] + 0.5/fps)
+
+            #self.cam[num].strobe_off()
         except Exception as e:
             print(e)
 
@@ -245,10 +254,11 @@ class CamGUI(object):
             self.vid_start_time = time.time()
             t = []
             for i in range(len(self.cam)):
-                #self.cam[i].set_frame_rate(int(self.fps.get()))
+                #self.cam[i].strobe_on()
                 t.append(threading.Thread(target=self.record_on_thread, args=(i,)))
                 t[-1].daemon = True
                 t[-1].start()
+
 
     def compress_vid(self, ind):
         ff_input = dict()
@@ -480,6 +490,7 @@ class CamGUI(object):
 
     def runGUI(self):
         self.window.mainloop()
+
 
 
 if __name__ == "__main__":

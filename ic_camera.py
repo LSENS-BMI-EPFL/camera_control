@@ -49,7 +49,8 @@ class ICCam(object):
             self.cam.LoadDeviceStateFromFile(file_name)
             print('Loaded device state: {}'.format(file_name))
 
-        #self.add_filters() #not needed if using device state
+        self.add_filters()
+        self.trigger_on()
 
     def add_filters(self):
         if self.rotate != 0:
@@ -95,3 +96,21 @@ class ICCam(object):
 
     def close(self):
         self.cam.StopLive()
+
+    def strobe_on(self):
+        self.cam.SetPropertySwitch('Strobe', 'Enable', 1) #1: on
+        self.cam.SetPropertyValue('Strobe', 'Mode', 2) #2: exposure
+        self.cam.SetPropertySwitch('Strobe', 'Polarity', 1)
+
+    def strobe_off(self):
+        self.cam.SetPropertySwitch('Strobe', 'Enable', 0)
+
+    # TODO : test this
+    def trigger_on(self):
+        self.cam.SetPropertySwitch('Trigger', 'Enable', 1) #1: on
+        self.cam.SetPropertySwitch('Trigger', 'Polarity', 1)
+        self.cam.SetPropertyAbsoluteValue('Trigger', 'Delay', 5) # in microsecond (min. is 3.1 us)
+        self.cam.SetPropertyValue('Trigger', 'IMXLowLatencyMode', 1)
+        self.cam.SetPropertyValue('Trigger', 'Exposure Mode', 0) #0: timed (pulse width is exposure time)
+    def software_trigger(self):
+        self.cam.PropertyOnePush('Trigger', 'Software Trigger', 'One Push')

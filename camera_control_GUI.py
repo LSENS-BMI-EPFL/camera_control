@@ -20,7 +20,8 @@ import threading
 import json
 import nidaqmx
 
-class CamGUI(object): #TODO: at init strobe disable
+
+class CamGUI(object):
 
     def __init__(self):
 
@@ -73,6 +74,9 @@ class CamGUI(object): #TODO: at init strobe disable
         else:
             self.cam_name.append(names[cam_num])
             self.cam.append(ICCam(cam_num))
+
+        self.cam[num].set_frame_ready_callback()
+        self.cam[num].trigger_on()
         self.cam[num].start()
         self.exposure[num].set(self.cam[num].get_exposure())
 
@@ -205,25 +209,25 @@ class CamGUI(object): #TODO: at init strobe disable
                 # create video writer
                 dim = self.cam[i].get_image_dimensions()
                 if len(self.vid_out) >= i+1:
-                    self.vid_out[i] = cv2.VideoWriter(self.vid_file[i], cv2.VideoWriter_fourcc(*'DIVX'), int(self.fps.get()), dim)
+                    self.vid_out[i] = i
+                    #self.vid_out[i] = cv2.VideoWriter(self.vid_file[i], cv2.VideoWriter_fourcc(*'DIVX'), int(self.fps.get()), dim)
+                    self.cam[i].user_data.vid_out = cv2.VideoWriter(self.vid_file[i], cv2.VideoWriter_fourcc(*'DIVX'), int(self.fps.get()), dim)
                 else:
-                    self.vid_out.append(cv2.VideoWriter(self.vid_file[i], cv2.VideoWriter_fourcc(*'DIVX'), int(self.fps.get()), dim))
+                    #self.vid_out.append(cv2.VideoWriter(self.vid_file[i], cv2.VideoWriter_fourcc(*'DIVX'), int(self.fps.get()), dim))
+                    self.vid_out = [i]
+                    self.cam[i].user_data.vid_out = cv2.VideoWriter(self.vid_file[i], cv2.VideoWriter_fourcc(*'DIVX'), int(self.fps.get()), dim)
 
                 if self.lv_task is not None:
                     self.lv_file = self.ts_file[0].replace('TIMESTAMPS_'+cam_name_nospace[0], 'LABVIEW')
 
                 # create video writer
                 self.frame_times = []
+                self.post_trigger_times = []
+
                 for i in self.ts_file:
                     self.frame_times.append([])
                 self.lv_ts = []
                 self.setup = True
-
-            # disable strobe out
-            #for i in range(len(self.cam)):
-            #    self.cam[i].strobe_off()
-
-
     def record_on_thread(self, num):
         fps = int(self.fps.get())
         start_time = time.time()
@@ -235,8 +239,10 @@ class CamGUI(object): #TODO: at init strobe disable
                 if time.time() >= next_frame:
 
                     self.frame_times[num].append(time.time())
+                    #self.vid_out[num].write(self.cam[num].get_image())
+                    #self.vid_out[num].write(self.cam[num].software_trigger()) #framereadycallback executes
                     self.cam[num].software_trigger()
-                    self.vid_out[num].write(self.cam[num].get_image())
+                    self.post_trigger_times.append(time.time())
                     next_frame = max(next_frame + 1.0/fps, self.frame_times[num][-1] + 0.5/fps)
 
             #self.cam[num].strobe_off()
@@ -254,7 +260,6 @@ class CamGUI(object): #TODO: at init strobe disable
             self.vid_start_time = time.time()
             t = []
             for i in range(len(self.cam)):
-                #self.cam[i].strobe_on()
                 t.append(threading.Thread(target=self.record_on_thread, args=(i,)))
                 t[-1].daemon = True
                 t[-1].start()
@@ -289,13 +294,36 @@ class CamGUI(object): #TODO: at init strobe disable
 
             # release video writer (saves file).
             # if no frames taken or delete specified, delete the file and do not save timestamp files; otherwise, save timestamp files.
-            for i in range(len(self.vid_out)):
-                self.vid_out[i].release()
-                self.vid_out[i] = None
+            #for i in range(len(self.vid_out)):
+            for i in range(int(self.number_of_cams.get())):
+                #self.vid_out[i].release()
+                #self.vid_out[i] = None
+
+                self.cam[i].user_data.vid_out.release()
+                self.cam[i].user_data.vid_out = None
+                print('Video saved')
                 if (delete) or (not frames_taken):
                     os.remove(self.vid_file[i])
                 else:
                     np.save(str(self.ts_file[i]), np.array(self.frame_times[i]))
+
+                    # ADD save user data #TODO: add to current system of saving data?
+                    with open(os.path.normpath(self.out_dir + '/' 'post_trigger_times.txt'), 'w') as fp:
+                        for item in self.post_trigger_times:
+                            fp.write("%s\n" % item)
+                    with open(os.path.normpath(self.out_dir + '/' 'trigger_times.txt'), 'w') as fp:
+                        for item in self.cam[i].user_data.trigger_times:
+                            fp.write("%s\n" % item)
+                    with open(os.path.normpath(self.out_dir + '/' 'callback_times.txt'), 'w') as fp:
+                        for item in self.cam[i].user_data.callback_times:
+                            fp.write("%s\n" % item)
+                    with open(os.path.normpath(self.out_dir + '/' 'framenumbers.txt'), 'w') as fp:
+                        for item in self.cam[i].user_data.framenumbers:
+                            fp.write("%s\n" % item)
+                    with open(os.path.normpath(self.out_dir + '/' 'saved_times.txt'), 'w') as fp:
+                        for item in self.cam[i].user_data.saved_times:
+                            fp.write("%s\n" % item)
+
                     saved_files.append(self.vid_file[i])
                     saved_files.append(self.ts_file[i])
                     if compress:

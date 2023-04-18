@@ -14,10 +14,66 @@ import os
 import json
 import cv2
 import ctypes as C
+import time
+
 
 path = os.path.dirname(os.path.realpath(__file__))
 dets_file = os.path.normpath(path + '/camera_details.json')
 cam_details = json.load(open(dets_file, 'r'))
+
+class CallbackUserdata(C.Structure):
+    """ User data passed to the callback function. """
+    def __init__(self, camera_index):
+        self.camera_index = camera_index
+        self.trigger_times = []
+        self.callback_times = []
+        self.framenumbers = []
+        self.saved_times = []
+        self.image_description = None
+        self.vid_out = None
+
+def frame_callback(hGrabber, pBuffer, framenumber, pData):
+    """
+    Callback function for each incoming frame.
+    It is recommended to perform image processing in the callback, because each hGrabber object has
+    its own thread and if many cameras are used, the callback run in own threads. That saves CPU load.
+
+    :param: hGrabber: This is the real pointer to the grabber object. Do not use.
+    :param: pBuffer : Pointer to the first pixel's first byte
+    :param: framenumber : Number of the frame since the stream started
+    :param: pData : Pointer to additional user data structure
+    """
+    # Get image description values
+    Width = pData.image_description[0]
+    Height = pData.image_description[1]
+    BitsPerPixel = pData.image_description[2]
+    colorformat = pData.image_description[3]
+#
+    # Calculate the buffer size, write frame to video object
+    bpp = int(BitsPerPixel / 8.0)
+    buffer_size = Width * Height * bpp
+
+    # Log callbacks
+    pData.callback_times.append(time.time())
+    if buffer_size > 0:
+        image = C.cast(pBuffer,
+                            C.POINTER(
+                                C.c_ubyte * buffer_size))
+#
+        frame = np.ndarray(buffer=image.contents,
+                                 dtype=np.uint8, #Y800
+                                 shape=(Height,
+                                        Width,
+                                        bpp))
+
+        pData.vid_out.write(cv2.flip(frame,0))
+        pData.saved_times.append(time.time())
+        pData.framenumbers.append(framenumber)
+    return
+
+
+FRAMEREADYCALLBACK = C.CFUNCTYPE(C.c_void_p, C.c_int, C.POINTER(C.c_ubyte), C.c_ulong, C.py_object)  # original
+callback_function_ptr = FRAMEREADYCALLBACK(frame_callback)
 
 class ICCam(object):
 
@@ -36,6 +92,8 @@ class ICCam(object):
         self.crop = crop if crop is not None else cam_details[str(self.cam_num)]['crop']
         self.exposure = exposure if exposure is not None else cam_details[str(self.cam_num)]['exposure']
 
+        self.user_data = CallbackUserdata(cam_num)
+
         self.cam = ic.TIS_CAM()
         self.cam.open(self.cam.GetDevices()[cam_num].decode())
 
@@ -50,7 +108,6 @@ class ICCam(object):
             print('Loaded device state: {}'.format(file_name))
 
         self.add_filters()
-        self.trigger_on()
 
     def add_filters(self):
         if self.rotate != 0:
@@ -67,7 +124,7 @@ class ICCam(object):
         self.size = (self.crop['width'], self.crop['height'])
 
     def set_frame_rate(self, fps):
-        self.cam.SetFrameRate(fps)
+        self.cam.SetFrameRate(fps) #TODO: set 2xfps if in trigger mode
 
     def set_exposure(self, val):
         val = 1 if val > 1 else val
@@ -97,6 +154,9 @@ class ICCam(object):
     def close(self):
         self.cam.StopLive()
 
+    def GPout(self):
+        self.cam.SetPropertyValue('GPIO', 'GP Out', 1)
+
     def strobe_on(self):
         self.cam.SetPropertySwitch('Strobe', 'Enable', 1) #1: on
         self.cam.SetPropertyValue('Strobe', 'Mode', 2) #2: exposure
@@ -105,12 +165,18 @@ class ICCam(object):
     def strobe_off(self):
         self.cam.SetPropertySwitch('Strobe', 'Enable', 0)
 
-    # TODO : test this
     def trigger_on(self):
         self.cam.SetPropertySwitch('Trigger', 'Enable', 1) #1: on
         self.cam.SetPropertySwitch('Trigger', 'Polarity', 1)
         self.cam.SetPropertyAbsoluteValue('Trigger', 'Delay', 5) # in microsecond (min. is 3.1 us)
         self.cam.SetPropertyValue('Trigger', 'IMXLowLatencyMode', 1)
         self.cam.SetPropertyValue('Trigger', 'Exposure Mode', 0) #0: timed (pulse width is exposure time)
+
     def software_trigger(self):
-        self.cam.PropertyOnePush('Trigger', 'Software Trigger', 'One Push')
+        self.user_data.image_description = self.cam.GetImageDescription()
+        self.user_data.trigger_times.append(time.time())
+        self.cam.PropertyOnePush('Trigger', 'Software Trigger')
+        return
+
+    def set_frame_ready_callback(self):
+        self.cam.SetFrameReadyCallback(callback_function_ptr, self.user_data)
